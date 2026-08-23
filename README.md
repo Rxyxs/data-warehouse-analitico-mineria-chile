@@ -39,23 +39,23 @@ This project builds a single **analytical data warehouse** that unifies the thre
 
 ```mermaid
 graph LR
-    subgraph RAW["raw (src/ingest.py)"]
+    subgraph RAW[Raw data]
         R1[raw_flotation_telemetry]
         R2[raw_caex_maintenance]
         R3[raw_safety_incidents]
     end
-    subgraph SEED["dbt seed"]
+    subgraph SEED[dbt seed]
         S0[dim_equipos_caex]
     end
-    subgraph STG["staging"]
+    subgraph STG[staging]
         T1[stg_flotation]
         T2[stg_maintenance]
         T3[stg_safety]
     end
-    subgraph INT["intermediate"]
+    subgraph INT[intermediate]
         I1[int_equipment_performance]
     end
-    subgraph MART["marts"]
+    subgraph MART[marts]
         M1[fct_daily_mining_kpis]
     end
 
@@ -70,6 +70,15 @@ graph LR
 ```
 
 Run `dbt docs generate && dbt docs serve` from `dbt_project/` (with `--profiles-dir .`) for the full interactive lineage graph and column-level documentation.
+
+**Raw rows ingested by domain:**
+
+```mermaid
+pie showData title Raw rows ingested by domain
+    "Flotation (6,480)" : 6480
+    "CAEX maintenance (1,620)" : 1620
+    "Safety incidents (212)" : 212
+```
 
 **Design decisions worth calling out:**
 
@@ -168,6 +177,14 @@ All numbers below come from actually running the pipeline in this repo:
 | OEE range | 37.2% -- 90.4% (avg 69.0%) -- correctly bounded ≤ 100% |
 | Recuperación % Cu range | 81.1% -- 85.7% (avg 83.4%) -- realistic for copper flotation |
 | Shift risk distribution | Bajo 328 · Medio 118 · Alto 78 · Crítico 16 |
+
+```mermaid
+pie showData title Shift risk distribution (540 shifts)
+    "Bajo" : 328
+    "Medio" : 118
+    "Alto" : 78
+    "Critico" : 16
+```
 
 ## 8. KPI methodology & data disclaimer
 

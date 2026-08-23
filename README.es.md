@@ -39,23 +39,23 @@ Este proyecto construye un **data warehouse analítico** único que unifica los 
 
 ```mermaid
 graph LR
-    subgraph RAW["raw (src/ingest.py)"]
+    subgraph RAW[Datos crudos]
         R1[raw_flotation_telemetry]
         R2[raw_caex_maintenance]
         R3[raw_safety_incidents]
     end
-    subgraph SEED["dbt seed"]
+    subgraph SEED[dbt seed]
         S0[dim_equipos_caex]
     end
-    subgraph STG["staging"]
+    subgraph STG[staging]
         T1[stg_flotation]
         T2[stg_maintenance]
         T3[stg_safety]
     end
-    subgraph INT["intermediate"]
+    subgraph INT[intermediate]
         I1[int_equipment_performance]
     end
-    subgraph MART["marts"]
+    subgraph MART[marts]
         M1[fct_daily_mining_kpis]
     end
 
@@ -70,6 +70,15 @@ graph LR
 ```
 
 Ejecuta `dbt docs generate && dbt docs serve` desde `dbt_project/` (con `--profiles-dir .`) para el grafo de linaje interactivo completo y documentación a nivel de columna.
+
+**Filas crudas ingeridas por dominio:**
+
+```mermaid
+pie showData title Filas crudas ingeridas por dominio
+    "Flotacion (6.480)" : 6480
+    "Mantencion CAEX (1.620)" : 1620
+    "Seguridad (212)" : 212
+```
 
 **Decisiones de diseño relevantes:**
 
@@ -168,6 +177,14 @@ Todos los números a continuación provienen de ejecutar realmente el pipeline d
 | Rango de OEE | 37,2% -- 90,4% (promedio 69,0%) -- correctamente acotado a ≤ 100% |
 | Rango de Recuperación % Cu | 81,1% -- 85,7% (promedio 83,4%) -- realista para flotación de cobre |
 | Distribución de riesgo por turno | Bajo 328 · Medio 118 · Alto 78 · Crítico 16 |
+
+```mermaid
+pie showData title Distribucion de riesgo por turno (540 turnos)
+    "Bajo" : 328
+    "Medio" : 118
+    "Alto" : 78
+    "Critico" : 16
+```
 
 ## 8. Metodología de KPIs y disclaimer de datos
 
