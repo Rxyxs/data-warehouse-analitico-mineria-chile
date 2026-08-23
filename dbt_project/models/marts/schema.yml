@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: fct_daily_mining_kpis
+    description: >
+      Tabla de hechos agregada por fecha, turno y faena: integra los 3 dominios
+      operativos (flotación, mantención CAEX, seguridad) en KPIs unificados --
+      TIEE, OEE, Recuperación %Cu y Nivel de Riesgo Operacional. Grano: una fila
+      por (fecha, turno, faena).
+    columns:
+      - name: fecha
+        tests: [not_null]
+      - name: turno
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Día', 'Noche']
+      - name: faena
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Andina', 'Los Bronces', 'El Teniente']
+      - name: tiee_pct
+        description: "Tiempo Idealmente Efectivo de Extracción (%) = horas operativas / horas turno programadas, agregado a nivel de flota. Métrica propia del proyecto, no un estándar regulatorio externo."
+        tests: [not_null]
+      - name: oee_pct
+        description: "Overall Equipment Effectiveness (%) = Disponibilidad x Desempeño x Calidad, donde Calidad descuenta las horas de detención asociadas a incidentes de seguridad -- integra el dominio de seguridad al KPI de equipos."
+        tests: [not_null]
+      - name: recuperacion_cu_pct
+        description: "Recuperación metalúrgica de cobre (%), fórmula de dos productos sobre leyes de alimentación/concentrado/cola ponderadas por tonelaje del turno."
+        tests: [not_null]
+      - name: nivel_riesgo
+        description: "Nivel de riesgo operacional (Bajo/Medio/Alto/Crítico), clasificación propia del proyecto en base a un puntaje ponderado por severidad de incidentes (LEVE=1, GRAVE=5, FATAL=25)."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Bajo', 'Medio', 'Alto', 'Crítico']

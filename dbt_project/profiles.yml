@@ -1,0 +1,7 @@
+mining_dw:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: 'data/mining_dw.duckdb'
+      threads: 4

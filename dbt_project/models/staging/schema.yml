@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: stg_flotation
+    description: Telemetría horaria de planta de flotación, limpia y tipada desde raw_flotation_telemetry.
+    columns:
+      - name: record_id
+        tests: [unique, not_null]
+      - name: faena
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Andina', 'Los Bronces', 'El Teniente']
+      - name: turno
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Día', 'Noche']
+      - name: ley_alimentacion_cu_pct
+        tests: [not_null]
+
+  - name: stg_maintenance
+    description: Registro de horas operativas/mantención CAEX por camión, día y turno, limpio desde raw_caex_maintenance.
+    columns:
+      - name: record_id
+        tests: [unique, not_null]
+      - name: camion_id
+        tests: [not_null]
+      - name: horas_operativas
+        tests: [not_null]
+
+  - name: stg_safety
+    description: Incidentes de seguridad limpios y normalizados desde raw_safety_incidents.
+    columns:
+      - name: incident_id
+        tests: [unique, not_null]
+      - name: severidad
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['LEVE', 'GRAVE', 'FATAL']

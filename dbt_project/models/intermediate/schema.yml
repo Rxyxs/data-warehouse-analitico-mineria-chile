@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: int_equipment_performance
+    description: >
+      Desempeño por camión CAEX, día y turno: cruza horas de mantención/operación
+      (stg_maintenance) con la capacidad nominal del equipo (seed dim_equipos_caex)
+      para calcular disponibilidad (horas operativas / horas turno) y desempeño
+      (tasa de transporte real vs. nominal).
+    columns:
+      - name: camion_id
+        tests: [not_null]
+      - name: faena
+        tests: [not_null]
+      - name: disponibilidad_pct
+        tests: [not_null]
+      - name: tonelaje_transportado_ton
+        tests: [not_null]

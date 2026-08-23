@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: main
+    description: Tablas crudas cargadas directamente por src/ingest.py.
+    tables:
+      - name: raw_flotation_telemetry
+        description: Telemetría horaria de planta de flotación por faena.
+      - name: raw_caex_maintenance
+        description: Registro de horas operativas/mantención por camión CAEX, día y turno.
+      - name: raw_safety_incidents
+        description: Incidentes de seguridad reportados por faena, día y turno.

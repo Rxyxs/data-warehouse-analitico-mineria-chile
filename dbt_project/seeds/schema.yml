@@ -1,0 +1,15 @@
+version: 2
+
+seeds:
+  - name: dim_equipos_caex
+    description: >
+      Dimensión estática de la flota CAEX -- modelo, capacidad nominal (ton) y
+      ciclos/hora nominales por camión. Datos ilustrativos basados en especificaciones
+      públicas de modelos reales de camión minero, no un roster operacional real.
+    columns:
+      - name: camion_id
+        tests: [unique, not_null]
+      - name: capacidad_nominal_ton
+        tests: [not_null]
+      - name: ciclos_hora_nominal
+        tests: [not_null]

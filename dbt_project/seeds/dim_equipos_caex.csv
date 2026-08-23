@@ -1,0 +1,10 @@
+camion_id,faena,modelo,capacidad_nominal_ton,ciclos_hora_nominal
+CAEX-101,Andina,Caterpillar 797F,363,2.2
+CAEX-102,Andina,Komatsu 930E,290,2.4
+CAEX-103,Andina,Liebherr T284,363,2.1
+CAEX-201,Los Bronces,Caterpillar 797F,363,2.2
+CAEX-202,Los Bronces,Komatsu 930E,290,2.3
+CAEX-203,Los Bronces,Caterpillar 793F,240,2.6
+CAEX-301,El Teniente,Komatsu 930E,290,2.2
+CAEX-302,El Teniente,Liebherr T284,363,2.0
+CAEX-303,El Teniente,Caterpillar 797F,363,2.1

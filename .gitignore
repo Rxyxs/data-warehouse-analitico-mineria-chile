@@ -1,0 +1,34 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# DuckDB (generado por src/ingest.py)
+data/*.duckdb
+data/*.duckdb.wal
+
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+dbt_project/.user.yml
+
+# Variables de entorno
+.env
+.env.*
+
+# Logs y temporales
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
