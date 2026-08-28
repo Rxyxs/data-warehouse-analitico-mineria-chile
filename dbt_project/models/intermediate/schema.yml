@@ -7,12 +7,36 @@ models:
       (stg_maintenance) con la capacidad nominal del equipo (seed dim_equipos_caex)
       para calcular disponibilidad (horas operativas / horas turno) y desempeño
       (tasa de transporte real vs. nominal).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+              combination_of_columns:
+                - camion_id
+                - fecha
+                - turno
     columns:
       - name: camion_id
         tests: [not_null]
       - name: faena
         tests: [not_null]
       - name: disponibilidad_pct
-        tests: [not_null]
+        description: Fracción (0-1) de horas operativas sobre horas de turno programadas.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 1
+      - name: desempeno_pct
+        description: Fracción (0-1) de tasa de transporte real sobre nominal -- acotada a 1.0 por construcción (ver README, convención OEE).
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 1
       - name: tonelaje_transportado_ton
-        tests: [not_null]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0

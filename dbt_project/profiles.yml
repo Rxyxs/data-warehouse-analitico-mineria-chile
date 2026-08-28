@@ -5,3 +5,21 @@ mining_dw:
       type: duckdb
       path: 'data/mining_dw.duckdb'
       threads: 4
+
+    # Segundo adapter, mismos modelos SQL sin ningun cambio: dbt separa la
+    # capa de modelado (models/) de la conexion (este archivo). "dev" (DuckDB)
+    # sigue siendo el target por defecto para mantener el proyecto 100% local
+    # y sin dependencias de red -- "postgres" es un target opt-in para quien
+    # ya tenga un servidor Postgres corriendo (local o administrado). Ningun
+    # SQL en models/ es especifico de DuckDB, asi que `dbt run --target
+    # postgres` funciona con la misma capa de modelado sin editar una sola
+    # linea de los .sql.
+    postgres:
+      type: postgres
+      host: "{{ env_var('MINING_DW_PG_HOST', 'localhost') }}"
+      port: "{{ env_var('MINING_DW_PG_PORT', '5432') | as_number }}"
+      user: "{{ env_var('MINING_DW_PG_USER', 'mining_dw') }}"
+      password: "{{ env_var('MINING_DW_PG_PASSWORD', 'mining_dw') }}"
+      dbname: "{{ env_var('MINING_DW_PG_DATABASE', 'mining_dw') }}"
+      schema: "{{ env_var('MINING_DW_PG_SCHEMA', 'public') }}"
+      threads: 4

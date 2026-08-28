@@ -7,6 +7,17 @@ models:
       operativos (flotación, mantención CAEX, seguridad) en KPIs unificados --
       TIEE, OEE, Recuperación %Cu y Nivel de Riesgo Operacional. Grano: una fila
       por (fecha, turno, faena).
+    tests:
+      # Version dbt_utils del mismo chequeo de grano que ya cubre el test
+      # singular assert_fct_daily_kpis_grain_is_unique.sql -- se mantienen
+      # ambos a propósito: el genérico de dbt_utils es la forma declarativa
+      # estándar, el singular documenta la intención en SQL explícito.
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+              combination_of_columns:
+                - fecha
+                - turno
+                - faena
     columns:
       - name: fecha
         tests: [not_null]
@@ -24,13 +35,28 @@ models:
                 values: ['Andina', 'Los Bronces', 'El Teniente']
       - name: tiee_pct
         description: "Tiempo Idealmente Efectivo de Extracción (%) = horas operativas / horas turno programadas, agregado a nivel de flota. Métrica propia del proyecto, no un estándar regulatorio externo."
-        tests: [not_null]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 100
       - name: oee_pct
         description: "Overall Equipment Effectiveness (%) = Disponibilidad x Desempeño x Calidad, donde Calidad descuenta las horas de detención asociadas a incidentes de seguridad -- integra el dominio de seguridad al KPI de equipos."
-        tests: [not_null]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 100
       - name: recuperacion_cu_pct
         description: "Recuperación metalúrgica de cobre (%), fórmula de dos productos sobre leyes de alimentación/concentrado/cola ponderadas por tonelaje del turno."
-        tests: [not_null]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 100
       - name: nivel_riesgo
         description: "Nivel de riesgo operacional (Bajo/Medio/Alto/Crítico), clasificación propia del proyecto en base a un puntaje ponderado por severidad de incidentes (LEVE=1, GRAVE=5, FATAL=25)."
         tests:

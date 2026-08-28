@@ -1,0 +1,148 @@
+version: 2
+
+models:
+  - name: ml_predictive_maintenance
+    description: >
+      Vista analítica de features lista para consumo directo por un modelo de
+      mantenimiento preventivo (RUL / clasificación de falla no programada).
+      Grano: una fila por (camion_id, fecha, turno), igual que
+      int_equipment_performance, más ventanas móviles rezagadas (7 turnos),
+      racha de turnos desde la última falla, y el target de siguiente turno
+      (`falla_siguiente_turno`, calculado con `lead()`, no `lag()` -- es lo
+      único en este modelo que mira hacia adelante, y solo para construir la
+      etiqueta que un clasificador intentaría predecir, nunca como feature de
+      entrada).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+              combination_of_columns:
+                - camion_id
+                - fecha
+                - turno
+    columns:
+      - name: camion_id
+        tests: [not_null]
+      - name: fecha
+        tests: [not_null]
+      - name: horas_operativas
+        description: Horas operativas del turno (0 a 12, turno programado estándar).
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 12
+      - name: horas_operativas_acumuladas
+        description: Horas operativas acumuladas del camión hasta este turno -- proxy de desgaste/antigüedad de uso.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+      - name: disponibilidad_pct
+        description: Fracción (0-1) de horas operativas sobre horas de turno programadas.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 1
+      - name: disponibilidad_rolling_7t
+        description: Disponibilidad promedio móvil de los últimos 7 turnos (rezagada, sin fuga futura).
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 1
+      - name: turnos_desde_ultima_falla
+        description: Turnos consecutivos transcurridos desde el último turno con una falla no programada (0 = falla en el turno actual).
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+      - name: falla_no_programada_flag
+        description: 1 si el camión tuvo horas de falla no programada en este turno, 0 en caso contrario.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+      - name: falla_siguiente_turno
+        description: >
+          Target de siguiente turno (0/1) para un clasificador de falla --
+          null únicamente en el último turno observado de cada camión, donde
+          todavía no existe un "siguiente turno" en el histórico.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+
+  - name: ml_ore_grade_prediction
+    description: >
+      Vista analítica de features lista para consumo directo por un modelo de
+      predicción de ley de mineral / recuperación metalúrgica. Grano horario
+      (faena, ts) -- más fino que fct_daily_mining_kpis a propósito, para
+      capturar la dinámica de proceso (dosificación, pH) que un promedio de
+      turno diluye. Incluye lags y ventanas móviles de 6h, todas rezagadas
+      (trailing), y dos columnas target (`target_ley_concentrado_cu_pct`,
+      `target_recuperacion_cu_pct`) que solo existen retrospectivamente en
+      este histórico -- exactamente lo que un modelo entrenado sobre esta
+      vista intentaría predecir a partir de las demás columnas.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+              combination_of_columns:
+                - faena
+                - ts
+    columns:
+      - name: record_id
+        tests: [unique, not_null]
+      - name: ts
+        tests: [not_null]
+      - name: ley_alimentacion_cu_pct
+        description: Ley de cobre en la alimentación a flotación (%).
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 100
+      - name: ph_pulpa
+        description: pH de la pulpa en el circuito de flotación (escala 0-14).
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 14
+      - name: ph_pulpa_rolling_6h
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 14
+      - name: dosis_reactivo_gpt
+        description: Dosis de reactivo colector (gramos por tonelada).
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+      - name: target_ley_concentrado_cu_pct
+        description: Ley de cobre en el concentrado producido esta hora (%) -- target de predicción.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 100
+      - name: target_recuperacion_cu_pct
+        description: >
+          Recuperación metalúrgica de esta hora puntual (%) -- target de
+          predicción. Puede ser null cuando las tres leyes de esa hora son
+          físicamente inconsistentes (ver macro metallurgical_recovery), en
+          cuyo caso el macro retorna null intencionalmente en vez de un
+          porcentaje sin sentido.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                  min_value: 0
+                  max_value: 100
