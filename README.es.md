@@ -120,6 +120,7 @@ Este es un **Star Schema** deliberado, no un Data Vault: una dimensión conforma
 **Filas crudas ingeridas por dominio:**
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'pie1': '#0891b2', 'pie2': '#2563eb', 'pie3': '#f59e0b', 'pieOuterStrokeWidth': '0px', 'pieSectionTextColor': '#ffffff'}}}%%
 pie showData title Filas crudas ingeridas por dominio
     "Flotacion (6.480)" : 6480
     "Mantencion CAEX (1.620)" : 1620
@@ -257,6 +258,7 @@ Todos los números a continuación provienen de ejecutar realmente el pipeline d
 | Distribución de riesgo por turno | Bajo 328 · Medio 118 · Alto 78 · Crítico 16 |
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'pie1': '#22c55e', 'pie2': '#eab308', 'pie3': '#f97316', 'pie4': '#dc2626', 'pieOuterStrokeWidth': '0px', 'pieSectionTextColor': '#ffffff'}}}%%
 pie showData title Distribucion de riesgo por turno (540 turnos)
     "Bajo" : 328
     "Medio" : 118
