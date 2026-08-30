@@ -28,6 +28,17 @@ Este proyecto construye un **data warehouse analítico** único que unifica los 
 
 **100% local, sin servicios cloud pagados**: DuckDB es un motor OLAP embebido (un solo archivo `.duckdb` en disco), dbt-duckdb corre toda la capa de transformación SQL contra él, y Streamlit lo consulta directamente -- nada aquí requiere una cuenta cloud, suscripción a un warehouse, ni acceso a red después de `pip install`. Los mismos modelos SQL también corren sin modificación contra **Postgres** (un segundo target de dbt en `profiles.yml`, opt-in) para quien ya tenga un servidor -- cambiar de adaptador no requiere ningún cambio en `models/`, que es todo el punto de dbt.
 
+## 1.1 Impacto de Negocio e Indicadores Clave (KPIs)
+
+| Métrica | Resultado | Qué significa |
+|---|---|---|
+| Modelos dbt construidos | 7 (3 staging + 1 intermediate + 1 mart + 2 vistas ML-ready) | Linaje completo desde ingesta cruda hasta listo-para-análisis, sin SQL manual fuera de dbt |
+| Tests dbt pasando | **83/83** | Unicidad de grano, not-null y rangos de telemetría físicamente plausibles (ley 0-100%, pH 0-14) aplicados en todo el pipeline |
+| Rango de OEE (540 turnos) | 37,2%-90,4%, prom. 69,0% | Correctamente acotado ≤100%, cruzado entre dominios (incidentes de seguridad degradan de forma medible el factor de calidad) |
+| Rango de recuperación de cobre | 81,1%-85,7%, prom. 83,4% | Realista para flotación de cobre, calculado al mismo grano compartido que los KPIs de flota/seguridad |
+| Vistas ML-ready | 2 (`ml_predictive_maintenance`, `ml_ore_grade_prediction`) | Ventanas móviles/lags/etiquetas ya construidas en la capa de warehouse -- sin paso separado de feature engineering para entrenar contra ellas |
+| Portabilidad de adaptador | DuckDB (default) + Postgres (verificado vía `dbt debug`) | Mismos modelos SQL, cero cambios de código, segundo target opt-in |
+
 ## 2. Arquitectura y linaje dbt
 
 ```

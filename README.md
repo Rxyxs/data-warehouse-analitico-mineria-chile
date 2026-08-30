@@ -28,6 +28,17 @@ This project builds a single **analytical data warehouse** that unifies the thre
 
 **100% local, no paid cloud services**: DuckDB is an embedded OLAP engine (a single `.duckdb` file on disk), dbt-duckdb runs the whole SQL transformation layer against it, and Streamlit queries it directly -- nothing here requires a cloud account, warehouse subscription, or network access after `pip install`. The same SQL models also run unmodified against **Postgres** (a second dbt target in `profiles.yml`, opt-in) for anyone who already has a server -- swapping the adapter needs zero changes to `models/`, which is dbt's whole point.
 
+## 1.1 Business Impact & Key Performance Indicators
+
+| Metric | Result | What it means |
+|---|---|---|
+| dbt models built | 7 (3 staging + 1 intermediate + 1 mart + 2 ML-ready views) | Full lineage from raw ingest to analysis-ready, no manual SQL outside dbt |
+| dbt tests passing | **83/83** | Grain uniqueness, not-null, and physically-plausible telemetry ranges (ore grade 0-100%, pH 0-14) enforced pipeline-wide |
+| OEE range (540 shifts) | 37.2%-90.4%, avg 69.0% | Correctly bounded ≤100%, cross-domain (safety incidents measurably drag down the quality factor) |
+| Copper recovery range | 81.1%-85.7%, avg 83.4% | Realistic for copper flotation, computed at the same shared grain as fleet/safety KPIs |
+| ML-ready views | 2 (`ml_predictive_maintenance`, `ml_ore_grade_prediction`) | Rolling windows/lags/labels pre-built at the warehouse layer -- no separate feature-engineering step needed to train against them |
+| Adapter portability | DuckDB (default) + Postgres (verified via `dbt debug`) | Same SQL models, zero code changes, opt-in second target |
+
 ## 2. Architecture & dbt lineage
 
 ```
