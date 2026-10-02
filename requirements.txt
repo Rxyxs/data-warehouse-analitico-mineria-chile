@@ -7,3 +7,7 @@ pyarrow>=16.0.0
 pandas>=2.1.0
 streamlit>=1.31.0
 pytest>=7.4.0
+
+# Solo para src/make_figures.py (graficos del README, leidos del warehouse ya
+# construido) - no forma parte del pipeline de datos.
+matplotlib>=3.8.0

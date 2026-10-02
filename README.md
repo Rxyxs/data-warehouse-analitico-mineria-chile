@@ -180,6 +180,7 @@ data-warehouse-analitico-mineria-chile/
 │   └── profiles.yml                   # self-contained, no ~/.dbt needed
 ├── src/
 │   ├── ingest.py                      # synthetic raw data generator + DuckDB loader
+│   ├── make_figures.py                # README figures, read from the built warehouse
 │   └── orchestrator.py                # ingest -> dbt deps/seed/run -> dbt test (building block)
 ├── run_pipeline.py                    # repo-level orchestrator: adds DuckDB schema validation
 ├── app.py                             # Streamlit executive dashboard
@@ -276,6 +277,30 @@ pie showData title Shift risk distribution (540 shifts)
     "Alto" : 78
     "Critico" : 16
 ```
+
+![Safety incidents against the equipment KPI, decomposed](outputs/figures/cross_domain_safety_oee.png)
+
+**This is the figure that justifies the whole warehouse.** Shifts with a safety incident average 66.78% OEE against 70.47% for clean shifts, a 3.69-point gap — and the decomposition shows the gap flows through the Quality factor alone (100.00 → 95.47), with availability moving −0.37 pp and performance −0.18 pp, both noise.
+
+To be precise about what that does and does not demonstrate: this is the designed mechanism working, not an empirical discovery. Quality is *defined* as `1 - safety_downtime / shift_hours`, so a shift with an incident must score lower; the figure confirms the join is wired correctly and that nothing leaks into the factors it should not touch. Copper recovery moves +0.08 pp — the flotation domain shares the grain but is deliberately not wired into this formula.
+
+The right panel is the honest counterweight: the two OEE distributions overlap heavily. A 3.69-point difference in means is real and it is the point of the model, but it does not make OEE a usable detector of whether a shift had an incident.
+
+![Risk level distribution and mean OEE per level](outputs/figures/risk_distribution.png)
+
+Mean OEE falls monotonically across risk levels — 70.47 / 69.47 / 65.00 / 55.64, a 14.8-point spread from Bajo to Crítico.
+
+**An honest limit of this synthetic run, found while plotting it**: `puntaje_riesgo_operacional` is `sum(LEVE=1, GRAVE=5, FATAL=25)` over a shift's incidents, and the level thresholds (`0` / `<5` / `<25` / else) are deliberately built so that several mild incidents can accumulate into a serious level — five LEVE incidents would score 5 and read *Alto*. **That path is never exercised here.** The 212 incidents each landed in a distinct `(fecha, turno, faena)`, so no shift has more than one, the score takes only 4 distinct values (0, 1, 5, 25), and `nivel_riesgo` collapses into a relabelling of that single incident's severity. The formula is built for accumulation; this data does not test it, and a reader should not take the four-level distribution as evidence that it works.
+
+![KPI distributions across 540 shifts](outputs/figures/kpi_distributions.png)
+
+OEE spans 53.2 points across shifts and never exceeds 100%, the arithmetic sanity check for a product of three bounded factors. Recovery spans only 4.6 points inside the 81–86% band that is realistic for copper flotation — and its range is the more meaningful of the two, because recovery uses the standard two-product metallurgical formula rather than a project-defined composite.
+
+![Label coverage of the ML-ready views](outputs/figures/ml_view_readiness.png)
+
+Both ML views expose an explicit target, so a model trains against them with no separate feature-engineering step. The 9 unlabelled maintenance rows are each truck's last observed shift, where there is no next shift to label — expected, not missing data.
+
+**Worth seeing before training**: `falla_siguiente_turno` is **124 positives out of 1,611 labelled rows, 7.7%**. At that balance accuracy is a useless metric, and the view is honest about it by exposing the raw flag rather than a pre-balanced sample — but the imbalance is a property of the data a user needs to know before pointing a classifier at it.
 
 ### 7.1 What the 83 dbt tests actually cover
 

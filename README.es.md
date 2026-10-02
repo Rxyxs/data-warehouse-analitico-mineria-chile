@@ -180,6 +180,7 @@ data-warehouse-analitico-mineria-chile/
 │   └── profiles.yml                   # autocontenido, no requiere ~/.dbt
 ├── src/
 │   ├── ingest.py                      # generador de datos crudos sintéticos + carga a DuckDB
+│   ├── make_figures.py                # Gráficos del README, desde el warehouse construido
 │   └── orchestrator.py                # ingesta -> dbt deps/seed/run -> dbt test (building block)
 ├── run_pipeline.py                    # orquestador a nivel de repo: agrega validación de esquema DuckDB
 ├── app.py                             # Dashboard ejecutivo Streamlit
@@ -276,6 +277,30 @@ pie showData title Distribucion de riesgo por turno (540 turnos)
     "Alto" : 78
     "Critico" : 16
 ```
+
+![Incidentes de seguridad contra el KPI de equipos, descompuesto](outputs/figures/cross_domain_safety_oee.png)
+
+**Esta es la figura que justifica todo el warehouse.** Los turnos con incidente de seguridad promedian 66,78% de OEE contra 70,47% de los turnos limpios, una brecha de 3,69 puntos — y la descomposición muestra que esa brecha pasa **solo** por el factor Calidad (100,00 → 95,47), con disponibilidad moviéndose −0,37 pp y desempeño −0,18 pp, ambos ruido.
+
+Siendo precisos sobre qué demuestra y qué no: esto es el mecanismo diseñado funcionando, no un descubrimiento empírico. La Calidad está *definida* como `1 - horas_detención_seguridad / horas_turno`, así que un turno con incidente tiene que puntuar más bajo; lo que la figura confirma es que el join está bien cableado y que nada se filtra a los factores que no debería tocar. La recuperación de cobre se mueve +0,08 pp — el dominio de flotación comparte el grano pero deliberadamente no está conectado a esta fórmula.
+
+El panel derecho es el contrapeso honesto: las dos distribuciones de OEE se solapan fuertemente. Una diferencia de 3,69 puntos en las medias es real y es el punto del modelo, pero no convierte al OEE en un detector utilizable de si un turno tuvo incidente.
+
+![Distribución de niveles de riesgo y OEE promedio por nivel](outputs/figures/risk_distribution.png)
+
+El OEE promedio cae monótonamente a través de los niveles de riesgo — 70,47 / 69,47 / 65,00 / 55,64, una brecha de 14,8 puntos entre Bajo y Crítico.
+
+**Un límite honesto de esta corrida sintética, encontrado al graficarla**: `puntaje_riesgo_operacional` es `sum(LEVE=1, GRAVE=5, FATAL=25)` sobre los incidentes de un turno, y los umbrales de nivel (`0` / `<5` / `<25` / else) están deliberadamente construidos para que varios incidentes leves puedan **acumularse** hasta un nivel serio — cinco incidentes LEVE puntuarían 5 y leerían *Alto*. **Esa rama nunca se ejercita acá.** Los 212 incidentes cayeron cada uno en un `(fecha, turno, faena)` distinto, así que ningún turno tiene más de uno, el puntaje toma solo 4 valores distintos (0, 1, 5, 25), y `nivel_riesgo` colapsa en un renombre de la severidad de ese único incidente. La fórmula está hecha para acumular; estos datos no la prueban, y un lector no debería tomar la distribución de cuatro niveles como evidencia de que funciona.
+
+![Distribuciones de KPI sobre 540 turnos](outputs/figures/kpi_distributions.png)
+
+El OEE abarca 53,2 puntos entre turnos y nunca supera 100%, el chequeo aritmético de sanidad para un producto de tres factores acotados. La recuperación abarca solo 4,6 puntos dentro de la banda 81–86% que es realista para flotación de cobre — y su rango es el más significativo de los dos, porque la recuperación usa la fórmula metalúrgica estándar de dos productos y no un compuesto definido por el proyecto.
+
+![Cobertura de etiquetas de las vistas ML-ready](outputs/figures/ml_view_readiness.png)
+
+Ambas vistas ML exponen un target explícito, así que un modelo entrena contra ellas sin un paso separado de ingeniería de features. Las 9 filas de mantenimiento sin etiqueta son el último turno observado de cada camión, donde no hay turno siguiente que etiquetar — esperado, no datos faltantes.
+
+**Vale verlo antes de entrenar**: `falla_siguiente_turno` tiene **124 positivos sobre 1.611 filas etiquetadas, un 7,7%**. Con ese balance la accuracy es una métrica inútil, y la vista es honesta al respecto porque expone el flag crudo en vez de una muestra pre-balanceada — pero el desbalance es una propiedad de los datos que hay que conocer antes de apuntarle un clasificador.
 
 ### 7.1 Qué cubren realmente los 83 tests de dbt
 
