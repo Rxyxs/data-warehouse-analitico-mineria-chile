@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⛏️ Data Warehouse Analítico -- Minería Chile</title>
+<meta name="description" content="**A fully local (no paid cloud) analytics warehouse unifying flotation, CAEX maintenance, and safety data for a Chilean mining site, built with dbt + DuckDB**">
+<style>
+  :root { --bg:#FBFAF8; --surface:#FFF; --ink:#23201D; --muted:#6B645D; --line:#E3DED7; --accent:#B5553D; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#171614; --surface:#201E1B; --ink:#EDE9E3; --muted:#A9A29A; --line:#322E2A; --accent:#D9765C; } }
+  :root[data-theme="dark"] { --bg:#171614; --surface:#201E1B; --ink:#EDE9E3; --muted:#A9A29A; --line:#322E2A; --accent:#D9765C; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.68 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:900px; margin:0 auto; padding:0 16px 88px; }
+  header { padding:60px 0 32px; border-bottom:1px solid var(--line); margin-bottom:36px; }
+  h1 { font-size:clamp(1.7rem,5vw,2.4rem); line-height:1.16; margin:0 0 18px; letter-spacing:-.02em; }
+  .lede { font-size:clamp(1rem,2.3vw,1.1rem); color:var(--muted); margin:0 0 22px; max-width:62ch; }
+  .lede strong { color:var(--ink); }
+  .links a { display:inline-block; margin:0 9px 9px 0; padding:9px 15px; border:1px solid var(--line);
+    border-radius:7px; text-decoration:none; color:var(--ink); background:var(--surface); font-size:.9rem;
+    transition:border-color .15s; }
+  .links a:hover { border-color:var(--accent); }
+  h2 { font-size:1.3rem; margin:48px 0 8px; padding-top:12px; border-top:1px solid var(--line); letter-spacing:-.01em; }
+  figure { margin:22px 0; }
+  figure img { width:100%; height:auto; display:block; border:1px solid var(--line); border-radius:9px; background:#fff; }
+  figcaption { font-size:.85rem; color:var(--muted); margin-top:9px; max-width:70ch; }
+  p { margin:0 0 16px; max-width:70ch; }
+  code { background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:.86em;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+  footer { margin-top:60px; padding-top:22px; border-top:1px solid var(--line); font-size:.86rem; color:var(--muted); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>⛏️ Data Warehouse Analítico -- Minería Chile</h1>
+<p class="lede"><strong>A fully local (no paid cloud) analytics warehouse unifying flotation, CAEX maintenance, and safety data for a Chilean mining site, built with dbt + DuckDB</strong></p>
+<div class="links">
+<a href="https://github.com/Rxyxs/data-warehouse-analitico-mineria-chile">Code and method</a>
+<a href="https://github.com/Rxyxs/data-warehouse-analitico-mineria-chile#readme">Full README</a>
+</div></header>
+<p>This page shows the project's results. The methodology, the design decisions and the limitations are documented in the repository's README.</p>
+<h2>7. Validated results</h2>
+<figure>
+<img src="figures/cross_domain_safety_oee.png" alt="Safety incidents against the equipment KPI, decomposed" loading="lazy">
+<figcaption><strong>This is the figure that justifies the whole warehouse.</strong> Shifts with a safety incident average 66.78% OEE against 70.47% for clean shifts, a 3.69-point gap — and the decomposition shows the gap flows through the Quality factor alone (100.00 → 95.47), with availability moving −0.37 pp and performance −0.18 pp, both noise.</figcaption>
+</figure>
+<figure>
+<img src="figures/risk_distribution.png" alt="Risk level distribution and mean OEE per level" loading="lazy">
+<figcaption>Mean OEE falls monotonically across risk levels — 70.47 / 69.47 / 65.00 / 55.64, a 14.8-point spread from Bajo to Crítico.</figcaption>
+</figure>
+<figure>
+<img src="figures/kpi_distributions.png" alt="KPI distributions across 540 shifts" loading="lazy">
+<figcaption>OEE spans 53.2 points across shifts and never exceeds 100%, the arithmetic sanity check for a product of three bounded factors. Recovery spans only 4.6 points inside the 81–86% band that is realistic for copper flotation — and its range is the more meaningful of the two, because recovery uses the standard two-product metallurgical formula rather than a project-defined composite.</figcaption>
+</figure>
+<figure>
+<img src="figures/ml_view_readiness.png" alt="Label coverage of the ML-ready views" loading="lazy">
+<figcaption>Both ML views expose an explicit target, so a model trains against them with no separate feature-engineering step. The 9 unlabelled maintenance rows are each truck&#x27;s last observed shift, where there is no next shift to label — expected, not missing data.</figcaption>
+</figure>
+<footer>
+Pablo Reyes · <a href="https://github.com/Rxyxs/data-warehouse-analitico-mineria-chile">github.com/Rxyxs/data-warehouse-analitico-mineria-chile</a> · MIT<br><br>
+Every figure on this page is produced by the repository's pipeline. For the full method and its limitations, see the README.
+</footer>
+</div></body></html>
