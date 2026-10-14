@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: dim_faena_cobre
+    description: Faenas de cobre del anuario de Cochilco con su propiedad y años de operación. Datos reales.
+    columns:
+      - name: faena
+        tests: [unique, not_null]
+  - name: fct_cobre_faena_anual
+    description: >
+      Producción real de cobre fino por faena y año (Cochilco, tabla 2.3), con participación nacional, variación
+      anual e índices de costo y productividad cuando Cochilco los publica para esa faena.
+      Grano: una fila por (anio, faena).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, faena]
+    columns:
+      - name: faena
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_faena_cobre')
+                field: faena
+              config:
+                where: "faena <> 'Otros'"
+      - name: participacion_pct
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 40
+  - name: fct_sector_cobre_anual
+    description: >
+      Indicadores anuales del sector cobre chileno (Cochilco 2000-2025): producción, ley del mineral, energía,
+      agua, precio LME e índices de costo y productividad. Grano: una fila por año.
+    columns:
+      - name: anio
+        tests: [unique, not_null]
+      - name: produccion_total_kt
+        tests: [not_null]
+      - name: precio_lme_usc_lb
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 50
+                max_value: 700

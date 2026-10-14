@@ -2,7 +2,7 @@
 
 # ⛏️ Data Warehouse Analítico -- Minería Chile
 
-**A fully local (no paid cloud) analytics warehouse unifying flotation, CAEX maintenance, and safety data for a Chilean mining site, built with dbt + DuckDB**
+**A fully local (no paid cloud) dbt + DuckDB analytics warehouse for Chilean copper mining: a real layer built from Cochilco's 2000-2025 statistical yearbook, plus a simulated site layer that unifies flotation, CAEX maintenance and safety at shift grain**
 
 🌐 **[English](README.md)** | **[Español](README.es.md)**
 
@@ -13,14 +13,50 @@
 [![Postgres](https://img.shields.io/badge/adapter-Postgres-336791)](https://www.postgresql.org/)
 [![Polars](https://img.shields.io/badge/ETL-Polars-CD792C)](https://pola.rs/)
 [![Streamlit](https://img.shields.io/badge/dashboard-Streamlit-FF4B4B)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/dbt%20tests-83%20passing-brightgreen)](dbt_project/models/)
+[![Tests](https://img.shields.io/badge/dbt%20tests-121%20passing-brightgreen)](dbt_project/models/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 </div>
 
 ---
 
-## 1. Business problem
+## 0. Real data first: Chile's copper sector, 2000-2025
+
+The warehouse has two layers, and they are labelled as such everywhere:
+
+| Layer | Source | Grain | Models |
+|---|---|---|---|
+| **Real** | Cochilco, *Anuario de Estadísticas del Cobre y Otros Minerales 2000-2025* (official Excel, 9 tables) | year x mine, year x process, year | `stg_cochilco__*`, `dim_faena_cobre`, `fct_cobre_faena_anual`, `fct_sector_cobre_anual` |
+| **Simulated** | `src/ingest.py`, fixed seed | date x shift x site | everything in sections 1-8 below |
+
+No public data exists at shift level for a Chilean mine (flotation telemetry, truck logs and incident reports are all internal), so the site layer stays simulated. The sector layer is real: `src/ingest_cochilco.py` turns the yearbook's wide, bilingual, indented sheets into a long table (3,233 rows) that keeps the hierarchy (Codelco -> divisions, process -> fuel / electricity), and dbt models it.
+
+![Chile's copper sector, 2005 = 100](outputs/figures/real_sector_trends.png)
+
+**What the real layer shows (2005 -> 2024):**
+
+- Concentrator ore grade fell from **1.17% to 0.71%** (-39%), while national copper output barely moved (**5,320 -> 5,506 kt**, +3%).
+- Concentrator electricity more than doubled (**27,450 -> 57,449 TJ**, +109%), but electricity **per tonne processed** only rose from **19.4 to 21.2 kWh/t** (+9%).
+- So the extra energy is not plants getting less efficient: it is more rock. The implied ore through concentrators went from **392 to 752 million tonnes a year** to produce the same copper.
+- The unit cost index (GMP-10 + Codelco, real 2005 = 100) reached **252** in 2024. Water per tonne in concentration fell from 0.67 m3/t (2009) to 0.35 (2024), with the shift to seawater.
+
+![Copper output by mine, 2025](outputs/figures/real_mines_2025.png)
+
+In 2025, Escondida alone produced **25.0%** of Chile's copper, and Codelco's share fell from 32.5% (2005) to 24.3%.
+
+**Data quality, enforced in dbt** (`dbt_project/tests/assert_cochilco_*.sql` and `models/*/cochilco/_cochilco.yml`):
+
+- Mines add up to their group (Codelco / other producers), and groups add up to the published national total, every year.
+- Energy by process (with the yearbook's subtotals removed) adds up to the published national consumption, by fuel, so nothing is counted twice.
+- In the cost and productivity index tables a 0 means "not published", not an index of zero; staging turns those into nulls.
+- Quebrada Blanca's cost index passes 1,000 in 2020 and 2022. It is a real value (end of cathode production and the QB2 ramp-up), so the range test allows it and documents why instead of hiding it.
+
+```bash
+python -m src.ingest_cochilco            # load the versioned long table (data/real/) into DuckDB
+python -m src.ingest_cochilco --refresh  # download the official Excel again and rebuild it
+```
+
+## 1. Business problem (simulated site layer)
 
 Mining sites in Chile typically run three operational domains in isolation: **geometallurgical flotation** (plant telemetry), **CAEX predictive/reactive maintenance** (haul truck fleet), and **safety/incident reporting** (SERNAGEOMIN-aligned). Each domain has its own reports, and nobody can answer cross-domain questions in one place -- e.g. *"did the shift with the safety incident also have degraded OEE, and did recovery hold up?"*
 
@@ -33,7 +69,7 @@ This project builds a single **analytical data warehouse** that unifies the thre
 | Metric | Result | What it means |
 |---|---|---|
 | dbt models built | 7 (3 staging + 1 intermediate + 1 mart + 2 ML-ready views) | Full lineage from raw ingest to analysis-ready, no manual SQL outside dbt |
-| dbt tests passing | **83/83** | Grain uniqueness, not-null, and physically-plausible telemetry ranges (ore grade 0-100%, pH 0-14) enforced pipeline-wide |
+| dbt tests passing | **121/121** | Grain uniqueness, not-null, and physically-plausible telemetry ranges (ore grade 0-100%, pH 0-14) enforced pipeline-wide |
 | OEE range (540 shifts) | 37.2%-90.4%, avg 69.0% | Correctly bounded ≤100%, cross-domain (safety incidents measurably drag down the quality factor) |
 | Copper recovery range | 81.1%-85.7%, avg 83.4% | Realistic for copper flotation, computed at the same shared grain as fleet/safety KPIs |
 | ML-ready views | 2 (`ml_predictive_maintenance`, `ml_ore_grade_prediction`) | Rolling windows/lags/labels pre-built at the warehouse layer -- no separate feature-engineering step needed to train against them |
@@ -171,8 +207,10 @@ data-warehouse-analitico-mineria-chile/
 │   │   ├── intermediate/              # int_equipment_performance
 │   │   ├── marts/                     # fct_daily_mining_kpis
 │   │   └── marts/ml/                  # ml_predictive_maintenance, ml_ore_grade_prediction
+│   │   ├── staging/cochilco/          # real: stg_cochilco__* (9 yearbook tables)
+│   │   ├── marts/cochilco/            # real: dim_faena_cobre, fct_cobre_faena_anual, fct_sector_cobre_anual
 │   ├── seeds/                         # dim_equipos_caex.csv (fleet dimension)
-│   ├── tests/                         # 3 custom singular SQL tests
+│   ├── tests/                         # 5 custom singular SQL tests (2 reconcile the real yearbook)
 │   ├── packages.yml                   # dbt_utils dependency
 │   ├── package-lock.yml               # pinned resolved version (committed)
 │   ├── macros/                        # safe_divide, metallurgical_recovery
@@ -180,6 +218,7 @@ data-warehouse-analitico-mineria-chile/
 │   └── profiles.yml                   # self-contained, no ~/.dbt needed
 ├── src/
 │   ├── ingest.py                      # synthetic raw data generator + DuckDB loader
+│   ├── ingest_cochilco.py             # REAL: Cochilco yearbook Excel -> long table -> DuckDB
 │   ├── make_figures.py                # README figures, read from the built warehouse
 │   └── orchestrator.py                # ingest -> dbt deps/seed/run -> dbt test (building block)
 ├── run_pipeline.py                    # repo-level orchestrator: adds DuckDB schema validation
@@ -261,7 +300,7 @@ All numbers below come from actually running the pipeline in this repo:
 | Raw rows ingested | 6,480 flotation + 1,620 maintenance + 212 safety incidents |
 | dbt seed | 1 (`dim_equipos_caex`, 9 CAEX trucks across 3 faenas) |
 | dbt models built | 7 (3 staging + 1 intermediate + 1 mart + 2 ML views) |
-| dbt tests | **83/83 passing** (generic + `dbt_utils` + 3 custom singular tests) |
+| dbt tests | **121/121 passing** (generic + `dbt_utils` + 5 custom singular tests) |
 | `fct_daily_mining_kpis` rows | 540 (3 faenas × 90 days × 2 turnos) |
 | `ml_predictive_maintenance` rows | 1,620 -- same grain as `int_equipment_performance`; 1,611 have a non-null `falla_siguiente_turno` label (all but the last observed shift per truck) |
 | `ml_ore_grade_prediction` rows | 6,480 -- hourly grain; `target_recuperacion_cu_pct` is non-null on all 6,480 (no physically-inconsistent grade triples in this synthetic run) |
@@ -332,7 +371,7 @@ from ml_ore_grade_prediction limit 3;
 
 ## 8. KPI methodology & data disclaimer
 
-All raw data (flotation telemetry, CAEX maintenance logs, safety incidents -- generated by `src/ingest.py` directly into `data/mining_dw.duckdb`) is **100% synthetic**, generated with a fixed seed. Site names (Andina, Los Bronces, El Teniente) and CAEX truck models (Caterpillar 797F, Komatsu 930E, Liebherr T284) are used only as realistic domain color -- no figure represents real operational data from those sites.
+The **real layer** (section 0) is Cochilco's yearbook, unmodified apart from reshaping. All raw data of the **site layer** (flotation telemetry, CAEX maintenance logs, safety incidents -- generated by `src/ingest.py` directly into `data/mining_dw.duckdb`) is **100% synthetic**, generated with a fixed seed. Site names (Andina, Los Bronces, El Teniente) and CAEX truck models (Caterpillar 797F, Komatsu 930E, Liebherr T284) are used only as realistic domain color -- no figure represents real operational data from those sites.
 
 - **Recuperación % Cu** uses the real, standard two-product metallurgical recovery formula.
 - **TIEE**, **OEE**'s quality factor, and **Nivel de Riesgo** are **project-defined composite KPIs** (documented in `dbt_project/models/marts/schema.yml`), not external regulatory or industry-standard indices -- built transparently from raw operational fields so the formula is always inspectable in the dbt model SQL.
@@ -341,7 +380,7 @@ All raw data (flotation telemetry, CAEX maintenance logs, safety incidents -- ge
 
 ```powershell
 pytest -v                                                                      # 8 tests: ingestion invariants + schema-validation contract
-dbt test --project-dir dbt_project --profiles-dir dbt_project                  # 83 tests: warehouse data quality
+dbt test --project-dir dbt_project --profiles-dir dbt_project                  # 121 tests: warehouse data quality
 ```
 
 The 4 new pytest tests exercise `run_pipeline.py`'s `validate_duckdb_schema()` directly against throwaway in-memory-style DuckDB files (`tmp_path`, not the real warehouse) -- confirming it passes on a satisfied contract and fails with a specific, legible error for a missing table, a missing column, and a missing database file, so the schema-validation step itself is verified, not just exercised as a side effect of the pipeline succeeding.

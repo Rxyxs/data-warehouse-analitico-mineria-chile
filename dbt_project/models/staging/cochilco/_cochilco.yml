@@ -1,0 +1,113 @@
+version: 2
+
+models:
+  - name: stg_cochilco__anuario
+    description: Anuario de Estadísticas del Cobre de Cochilco (2000-2025) en formato largo. Datos reales.
+    columns:
+      - name: tabla
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['2.3', '2.4', '2.5', '2.6', '6.3', '6.5', '6.8', '6.9', '8.21']
+      - name: anio
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 2000
+                max_value: 2025
+  - name: stg_cochilco__produccion_faena
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, faena]
+    columns:
+      - name: produccion_kt
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 2000
+      - name: propiedad
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Codelco', 'Privada']
+  - name: stg_cochilco__produccion_total
+    columns:
+      - name: anio
+        tests: [unique, not_null]
+      - name: total_kt
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 4000
+                max_value: 7000
+  - name: stg_cochilco__ley_mineral
+    columns:
+      - name: anio
+        tests: [unique, not_null]
+      - name: ley_concentradora_pct
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0.3
+                max_value: 2.0
+  - name: stg_cochilco__indices_faena
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, entidad]
+    columns:
+      - name: indice_costo
+        description: >
+          Costo unitario total, base real 2005 = 100. Quebrada Blanca supera 1000 en 2020 y 2022: es dato real
+          (fin de los cátodos y arranque de QB2, con producción mínima), no un error de carga.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 2000
+  - name: stg_cochilco__energia_proceso
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, proceso, fuente]
+    columns:
+      - name: energia_tj
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+  - name: stg_cochilco__intensidad_energia
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, proceso]
+  - name: stg_cochilco__agua
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, proceso]
+    columns:
+      - name: nacional_m3_t
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5
+  - name: stg_cochilco__precios
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, metal, bolsa]
+    columns:
+      - name: promedio_usc_lb
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1

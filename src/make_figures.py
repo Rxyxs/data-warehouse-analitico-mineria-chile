@@ -9,6 +9,7 @@ from pathlib import Path
 
 import duckdb
 import matplotlib
+import matplotlib.ticker
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -291,6 +292,70 @@ def figure_ml_views(con):
     return pdm, ore
 
 
+# --------------------------------------------------------------------------
+# Real layer: Cochilco yearbook
+# --------------------------------------------------------------------------
+REAL = "#1F4E79"
+
+
+def figure_real_sector(con):
+    """Grade halves, output stays flat, concentrator electricity doubles."""
+    df = con.execute("""
+        select anio, produccion_total_kt, ley_concentradora_pct, electricidad_concentradora_tj,
+               concentradora_kwh_t_procesada, indice_costo
+        from fct_sector_cobre_anual where anio between 2005 and 2024 order by anio
+    """).df()
+    base = df.iloc[0]
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(12, 4.6), gridspec_kw={"width_ratios": [1.35, 1]})
+    series = [
+        ("electricidad_concentradora_tj", "Concentrator electricity", INCID),
+        ("indice_costo", "Unit cost index (GMP-10 + Codelco)", ORE),
+        ("produccion_total_kt", "Copper output", REAL),
+        ("concentradora_kwh_t_procesada", "Electricity per tonne processed", NEUTRAL),
+        ("ley_concentradora_pct", "Concentrator ore grade", CLEAN),
+    ]
+    for col, label, color in series:
+        idx = 100 * df[col] / base[col]
+        ax.plot(df["anio"], idx, color=color, linewidth=2.2, label=label)
+        last = idx.dropna()
+        ax.annotate(f"{last.iloc[-1]:.0f}", (df["anio"].iloc[last.index[-1]], last.iloc[-1]),
+                    xytext=(5, 0), textcoords="offset points", va="center", fontsize=9, color=color)
+    ax.axhline(100, color=INK, linewidth=0.8, alpha=0.5)
+    _style(ax, "Chile's copper sector, 2005 = 100", ylabel="index")
+    ax.legend(frameon=False, fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=2)
+    ax.text(2020.5, 238, "no index\npublished\n2019-22", fontsize=7.5, color=ORE, ha="center")
+
+    tonnes = df["electricidad_concentradora_tj"] * 1e6 / 3.6 / df["concentradora_kwh_t_procesada"] / 1e6
+    ax2.bar(df["anio"], tonnes, color=REAL, alpha=0.85)
+    _style(ax2, "Ore through concentrators (implied)", ylabel="million tonnes / year")
+    for a in (ax, ax2):
+        a.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+    fig.text(0.01, -0.12, "Source: Cochilco, Anuario de Estadísticas del Cobre y Otros Minerales 2000-2025 "
+             "(tables 2.3, 2.4, 2.5, 6.5, 6.9). Tonnes = electricity (TJ) / kWh per tonne.",
+             fontsize=8, color=INK, alpha=0.7)
+    _save(fig, "real_sector_trends.png")
+    return df, tonnes
+
+
+def figure_real_mines(con):
+    """Where Chile's copper comes from, and how concentrated it is."""
+    df = con.execute("""
+        select faena, propiedad, produccion_kt, participacion_pct
+        from fct_cobre_faena_anual where anio = 2025 and faena <> 'Otros'
+        order by produccion_kt desc limit 15
+    """).df()
+    fig, ax = plt.subplots(figsize=(9, 5.4))
+    colors = [INCID if p == "Codelco" else REAL for p in df["propiedad"]]
+    ax.barh(df["faena"][::-1], df["produccion_kt"][::-1], color=colors[::-1])
+    for y, (v, s) in enumerate(zip(df["produccion_kt"][::-1], df["participacion_pct"][::-1])):
+        ax.text(v + 12, y, f"{v:,.0f} kt  ({s:.1f}%)", va="center", fontsize=8.5, color=INK)
+    _style(ax, "Copper output by mine, 2025 (red = Codelco)", xlabel="thousand tonnes of fine copper",
+           grid_axis="x")
+    ax.set_xlim(0, df["produccion_kt"].max() * 1.3)
+    _save(fig, "real_mines_2025.png")
+    return df
+
+
 if __name__ == "__main__":
     if not DB_PATH.exists():
         raise SystemExit(f"No warehouse at {DB_PATH}. Run `python run_pipeline.py` first.")
@@ -301,6 +366,8 @@ if __name__ == "__main__":
     kpis = figure_kpi_distributions(con)
     order, counts, scores, max_inc, n_scores = figure_risk(con)
     pdm, ore = figure_ml_views(con)
+    sector, tonnes = figure_real_sector(con)
+    mines = figure_real_mines(con)
 
     print("\nNumbers annotated on the figures:")
     print(f"  shifts            : {int(clean['n']) + int(inc['n'])} "
@@ -320,3 +387,10 @@ if __name__ == "__main__":
     print(f"  ml_pdm labels     : {int(pdm['labelled'])}/{int(pdm['rows'])}, "
           f"{int(pdm['positives'])} positives")
     print(f"  ml_ore labels     : {int(ore['labelled'])}/{int(ore['rows'])}")
+    s0, s1 = sector.iloc[0], sector.iloc[-1]
+    print(f"  real 2005->2024   : grade {s0['ley_concentradora_pct']:.2f}->{s1['ley_concentradora_pct']:.2f}%, "
+          f"output {s0['produccion_total_kt']:,.0f}->{s1['produccion_total_kt']:,.0f} kt, "
+          f"conc. electricity {s0['electricidad_concentradora_tj']:,.0f}->{s1['electricidad_concentradora_tj']:,.0f} TJ, "
+          f"kWh/t {s0['concentradora_kwh_t_procesada']:.1f}->{s1['concentradora_kwh_t_procesada']:.1f}, "
+          f"ore {tonnes.iloc[0]:.0f}->{tonnes.iloc[-1]:.0f} Mt, cost idx {s1['indice_costo']:.0f}")
+    print(f"  real top mines    : {list(zip(mines['faena'][:4], mines['participacion_pct'][:4].round(1)))}")

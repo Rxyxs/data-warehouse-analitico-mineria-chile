@@ -11,3 +11,8 @@ pytest>=7.4.0
 # Solo para src/make_figures.py (graficos del README, leidos del warehouse ya
 # construido) - no forma parte del pipeline de datos.
 matplotlib>=3.8.0
+
+# Solo para regenerar la tabla real desde el Excel de Cochilco
+# (python -m src.ingest_cochilco --refresh); el pipeline usa el CSV versionado.
+openpyxl>=3.1.0
+requests>=2.31.0
