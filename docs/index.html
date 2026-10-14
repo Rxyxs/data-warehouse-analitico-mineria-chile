@@ -38,12 +38,26 @@
 <div class="wrap">
 <header>
 <h1>⛏️ Data Warehouse Analítico -- Minería Chile</h1>
-<p class="lede"><strong>A fully local (no paid cloud) analytics warehouse unifying flotation, CAEX maintenance, and safety data for a Chilean mining site, built with dbt + DuckDB</strong></p>
+<p class="lede">A local dbt + DuckDB warehouse for Chilean copper mining. <strong>The real layer is built from Cochilco's 2000-2025 statistical yearbook</strong>; a second, simulated layer unifies flotation, truck maintenance and safety at shift grain, because no public shift-level data exists.</p>
 <div class="links">
 <a href="https://github.com/Rxyxs/data-warehouse-analitico-mineria-chile">Code and method</a>
 <a href="https://github.com/Rxyxs/data-warehouse-analitico-mineria-chile#readme">Full README</a>
 </div></header>
 <p>This page shows the project's results. The methodology, the design decisions and the limitations are documented in the repository's README.</p>
+<h2>0. Real data: Chile's copper sector, 2005-2024</h2>
+<figure>
+<img src="figures/real_sector_trends.png" alt="Chile's copper sector indexed to 2005" loading="lazy">
+<figcaption>Concentrator ore grade fell from 1.17% to 0.71% while output barely moved (5,320 to 5,506 kt).
+Concentrator electricity more than doubled (27,450 to 57,449 TJ), yet electricity per tonne processed only rose from
+19.4 to 21.2 kWh/t. The extra energy is more rock, not less efficient plants: implied ore through concentrators went
+from 392 to 752 million tonnes a year.</figcaption>
+</figure>
+<figure>
+<img src="figures/real_mines_2025.png" alt="Copper output by mine in 2025" loading="lazy">
+<figcaption>Escondida alone produced 25.0% of Chile's copper in 2025; Codelco's share fell from 32.5% (2005) to 24.3%.
+dbt tests check every year that mines add up to their group and groups to the published national total.</figcaption>
+</figure>
+<p>Everything below this point is the <strong>simulated</strong> site layer (fixed seed).</p>
 <h2>7. Validated results</h2>
 <figure>
 <img src="figures/cross_domain_safety_oee.png" alt="Safety incidents against the equipment KPI, decomposed" loading="lazy">
