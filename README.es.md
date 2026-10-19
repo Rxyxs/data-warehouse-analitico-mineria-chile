@@ -4,7 +4,7 @@
 
 **Un warehouse analítico 100% local (sin nube paga) con dbt + DuckDB para la minería del cobre en Chile: una capa real construida desde el anuario 2000-2025 de Cochilco, más una capa simulada de faena que unifica flotación, mantención CAEX y seguridad a grano de turno**
 
-🌐 **[English](README.md)** | **[Español](README.es.md)**
+[[English](README.md) ] | [Español ]
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![dbt](https://img.shields.io/badge/dbt--duckdb-1.8%2B-FF694B)](https://github.com/duckdb/dbt-duckdb)

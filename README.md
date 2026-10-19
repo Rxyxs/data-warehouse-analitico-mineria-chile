@@ -4,7 +4,7 @@
 
 **A fully local (no paid cloud) dbt + DuckDB analytics warehouse for Chilean copper mining: a real layer built from Cochilco's 2000-2025 statistical yearbook, plus a simulated site layer that unifies flotation, CAEX maintenance and safety at shift grain**
 
-🌐 **[English](README.md)** | **[Español](README.es.md)**
+[English ] | [[Español](README.es.md) ]
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![dbt](https://img.shields.io/badge/dbt--duckdb-1.8%2B-FF694B)](https://github.com/duckdb/dbt-duckdb)
