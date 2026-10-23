@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>⛏️ Data Warehouse Analítico -- Minería Chile</title>
-<meta name="description" content="**A fully local (no paid cloud) analytics warehouse unifying flotation, CAEX maintenance, and safety data for a Chilean mining site, built with dbt + DuckDB**">
+<meta name="description" content="A local dbt + DuckDB warehouse for Chilean copper mining. The real layer is built from Cochilco&#x27;s 2000-2025 statistical yearbook; a second, simulated layer unifies flotation, truck">
 <style>
   :root { --bg:#FBFAF8; --surface:#FFF; --ink:#23201D; --muted:#6B645D; --line:#E3DED7; --accent:#B5553D; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -47,15 +47,11 @@
 <h2>0. Real data: Chile's copper sector, 2005-2024</h2>
 <figure>
 <img src="figures/real_sector_trends.png" alt="Chile's copper sector indexed to 2005" loading="lazy">
-<figcaption>Concentrator ore grade fell from 1.17% to 0.71% while output barely moved (5,320 to 5,506 kt).
-Concentrator electricity more than doubled (27,450 to 57,449 TJ), yet electricity per tonne processed only rose from
-19.4 to 21.2 kWh/t. The extra energy is more rock, not less efficient plants: implied ore through concentrators went
-from 392 to 752 million tonnes a year.</figcaption>
+<figcaption><strong>What the real layer shows (2005 -&gt; 2024):</strong></figcaption>
 </figure>
 <figure>
 <img src="figures/real_mines_2025.png" alt="Copper output by mine in 2025" loading="lazy">
-<figcaption>Escondida alone produced 25.0% of Chile's copper in 2025; Codelco's share fell from 32.5% (2005) to 24.3%.
-dbt tests check every year that mines add up to their group and groups to the published national total.</figcaption>
+<figcaption>In 2025, Escondida alone produced <strong>25.0%</strong> of Chile&#x27;s copper, and Codelco&#x27;s share fell from 32.5% (2005) to 24.3%.</figcaption>
 </figure>
 <p>Everything below this point is the <strong>simulated</strong> site layer (fixed seed).</p>
 <h2>7. Validated results</h2>
