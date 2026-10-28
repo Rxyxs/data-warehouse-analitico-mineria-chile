@@ -53,12 +53,13 @@ def main() -> None:
         "--target", args.target,
     ]
 
-    _run_step("1/6 Ingesta operativa simulada -> DuckDB", [sys.executable, "-m", "src.ingest"])
-    _run_step("2/6 Ingesta real: anuario Cochilco -> DuckDB", [sys.executable, "-m", "src.ingest_cochilco"])
-    _run_step("3/6 dbt deps (instala dbt_utils)", [*DBT_CMD, "deps", *dbt_common_args])
-    _run_step("4/6 dbt seed (dimensión de equipos CAEX)", [*DBT_CMD, "seed", *dbt_common_args])
-    _run_step("5/6 dbt run (staging -> intermediate -> marts -> ml)", [*DBT_CMD, "run", *dbt_common_args])
-    _run_step("6/6 dbt test (genéricos + dbt_utils + custom)", [*DBT_CMD, "test", *dbt_common_args])
+    _run_step("1/7 Ingesta operativa simulada -> DuckDB", [sys.executable, "-m", "src.ingest"])
+    _run_step("2/7 Ingesta real: anuario Cochilco -> DuckDB", [sys.executable, "-m", "src.ingest_cochilco"])
+    _run_step("3/7 Ingesta real: costo marginal del SEN (CEN) -> DuckDB", [sys.executable, "-m", "src.ingest_cen"])
+    _run_step("4/7 dbt deps (instala dbt_utils)", [*DBT_CMD, "deps", *dbt_common_args])
+    _run_step("5/7 dbt seed (dimensión de equipos CAEX)", [*DBT_CMD, "seed", *dbt_common_args])
+    _run_step("6/7 dbt run (staging -> intermediate -> marts -> ml)", [*DBT_CMD, "run", *dbt_common_args])
+    _run_step("7/7 dbt test (genéricos + dbt_utils + custom)", [*DBT_CMD, "test", *dbt_common_args])
 
     print(f"\nPipeline completo (target={args.target}).")
     if args.target == "dev":

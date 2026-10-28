@@ -356,6 +356,37 @@ def figure_real_mines(con):
     return df
 
 
+def figure_real_energy_cost(con):
+    """Spot value of copper mining's electricity, and the noon/night price gap by zone."""
+    cost = con.execute("""
+        select anio, barra, costo_spot_usd_por_t_cobre, costo_spot_electricidad_musd
+        from fct_costo_electrico_cobre_anual where barra in ('Crucero', 'Quillota', 'Puerto Montt') order by anio
+    """).df()
+    gap = con.execute("""
+        select mes, zona, avg(cmg_horas_solares_usd_mwh) as sol, avg(cmg_noche_usd_mwh) as noche
+        from fct_cmg_mensual_barra group by mes, zona order by mes
+    """).df()
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(12, 4.6), gridspec_kw={"width_ratios": [1, 1.35]})
+    colors = {"Crucero": INCID, "Quillota": REAL, "Puerto Montt": ORE}
+    for bar, g in cost.groupby("barra"):
+        ax.plot(g["anio"], g["costo_spot_usd_por_t_cobre"], marker="o", linewidth=2.2, color=colors[bar], label=bar)
+    _style(ax, "Copper mining's electricity at the real spot price", ylabel="USD per tonne of copper")
+    ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+    ax.legend(frameon=False, fontsize=8.5)
+    for zona, color in (("Norte", INCID), ("Centro-sur", REAL)):
+        g = gap[gap["zona"] == zona]
+        label = "North" if zona == "Norte" else "Centre-south"
+        ax2.plot(g["mes"], g["noche"], color=color, linewidth=2, label=f"{label}, night (20-06)")
+        ax2.plot(g["mes"], g["sol"], color=color, linewidth=2, linestyle="--", label=f"{label}, solar hours (10-16)")
+    _style(ax2, "Real marginal cost by time of day", ylabel="USD/MWh, monthly mean")
+    ax2.legend(frameon=False, fontsize=8, ncol=2, loc="upper right")
+    fig.text(0.01, -0.06, "Sources: Cochilco yearbook table 6.5 (electricity, TJ) and 2.3 (copper output); hourly marginal "
+             "cost read from the Coordinador Eléctrico Nacional daily reports. Spot valuation, not the contract tariffs mines pay.",
+             fontsize=8, color=INK, alpha=0.7)
+    _save(fig, "real_energy_cost.png")
+    return cost, gap
+
+
 if __name__ == "__main__":
     if not DB_PATH.exists():
         raise SystemExit(f"No warehouse at {DB_PATH}. Run `python run_pipeline.py` first.")
@@ -368,6 +399,7 @@ if __name__ == "__main__":
     pdm, ore = figure_ml_views(con)
     sector, tonnes = figure_real_sector(con)
     mines = figure_real_mines(con)
+    cost, gap = figure_real_energy_cost(con)
 
     print("\nNumbers annotated on the figures:")
     print(f"  shifts            : {int(clean['n']) + int(inc['n'])} "
@@ -394,3 +426,6 @@ if __name__ == "__main__":
           f"kWh/t {s0['concentradora_kwh_t_procesada']:.1f}->{s1['concentradora_kwh_t_procesada']:.1f}, "
           f"ore {tonnes.iloc[0]:.0f}->{tonnes.iloc[-1]:.0f} Mt, cost idx {s1['indice_costo']:.0f}")
     print(f"  real top mines    : {list(zip(mines['faena'][:4], mines['participacion_pct'][:4].round(1)))}")
+    cru = cost[cost["barra"] == "Crucero"].set_index("anio")
+    print(f"  real spot cost    : Crucero USD/t Cu {cru['costo_spot_usd_por_t_cobre'].round(0).to_dict()}, "
+          f"USD M {cru['costo_spot_electricidad_musd'].round(0).to_dict()}")
