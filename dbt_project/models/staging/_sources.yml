@@ -4,8 +4,9 @@ sources:
   - name: raw
     schema: main
     description: >
-      Tablas crudas. Las raw_* operativas son simuladas (src/ingest.py); raw_cochilco_anuario es real
-      (anuario de Cochilco, src/ingest_cochilco.py).
+      Tablas crudas. Las raw_* operativas son simuladas (src/ingest.py); raw_cochilco_anuario
+      (anuario de Cochilco, src/ingest_cochilco.py) y raw_cen_cmg_diario (costo marginal del SEN,
+      src/ingest_cen.py) son reales.
     tables:
       - name: raw_flotation_telemetry
         description: Telemetría horaria de planta de flotación por faena.
@@ -15,3 +16,7 @@ sources:
         description: Incidentes de seguridad reportados por faena, día y turno.
       - name: raw_cochilco_anuario
         description: Anuario de Estadísticas del Cobre de Cochilco 2000-2025 en formato largo (datos reales).
+      - name: raw_cen_cmg_diario
+        description: >
+          Costo marginal real del SEN por día y barra de 220 kV, 2022-2025, resumido del costo marginal
+          horario leído de los informes diarios del Coordinador (promedio, horas solares 10-16, noche 20-06).

@@ -13,7 +13,7 @@
 [![Postgres](https://img.shields.io/badge/adapter-Postgres-336791)](https://www.postgresql.org/)
 [![Polars](https://img.shields.io/badge/ETL-Polars-CD792C)](https://pola.rs/)
 [![Streamlit](https://img.shields.io/badge/dashboard-Streamlit-FF4B4B)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/dbt%20tests-121%20passing-brightgreen)](dbt_project/models/)
+[![Tests](https://img.shields.io/badge/dbt%20tests-131%20passing-brightgreen)](dbt_project/models/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 </div>
@@ -27,6 +27,7 @@ El warehouse tiene dos capas, y están rotuladas así en todas partes:
 | Capa | Fuente | Grano | Modelos |
 |---|---|---|---|
 | **Real** | Cochilco, *Anuario de Estadísticas del Cobre y Otros Minerales 2000-2025* (Excel oficial, 9 tablas) | año x faena, año x proceso, año | `stg_cochilco__*`, `dim_faena_cobre`, `fct_cobre_faena_anual`, `fct_sector_cobre_anual` |
+| **Real** | Informes diarios del Coordinador Eléctrico Nacional: costo marginal horario en seis barras de 220 kV, 2022-2025 | día x barra | `stg_cen__cmg_diario`, `fct_cmg_mensual_barra`, `fct_costo_electrico_cobre_anual` |
 | **Simulada** | `src/ingest.py`, semilla fija | fecha x turno x faena | todo lo de las secciones 1 a 8 |
 
 No existen datos públicos a nivel de turno para una faena chilena (la telemetría de flotación, los registros de camiones y los reportes de incidentes son internos), así que la capa de faena sigue siendo simulada. La capa sectorial es real: `src/ingest_cochilco.py` convierte las hojas anchas, bilingües y con sangría del anuario en una tabla larga (3.233 filas) que conserva la jerarquía (Codelco -> divisiones, proceso -> combustibles / electricidad), y dbt la modela.
@@ -56,6 +57,30 @@ python -m src.ingest_cochilco            # carga la tabla larga versionada (data
 python -m src.ingest_cochilco --refresh  # vuelve a descargar el Excel oficial y la regenera
 ```
 
+### Precios reales de la electricidad: cuánto vale la energía de la minería del cobre a precio spot
+
+Una segunda fuente real se suma a la capa sectorial: el **costo marginal horario del SEN en seis barras de 220 kV**, de Crucero (Antofagasta) a Puerto Montt, 2022-2025. Se lee de los gráficos vectoriales de los informes diarios públicos del Coordinador en [chile-energy-grid-forecasting](https://github.com/Rxyxs/chile-energy-grid-forecasting), donde se valida contra series mensuales oficiales; `src/ingest_cen.py` lo resume a una fila por día y barra (promedio del día, horas solares 10-16 y noche 20-06, hora local) y dbt lo modela como `stg_cen__cmg_diario`, `fct_cmg_mensual_barra` y `fct_costo_electrico_cobre_anual`.
+
+![La electricidad de la minería del cobre a precio spot real](outputs/figures/real_energy_cost.png)
+
+`fct_costo_electrico_cobre_anual` valoriza la electricidad que consumió la minería del cobre cada año (Cochilco, tabla 6.5) al costo marginal real promedio de cada barra. **Es un costo de oportunidad a precio spot, no lo que pagan las faenas**: compran casi toda su energía por contratos de largo plazo.
+
+| Año | Electricidad (TWh) | Precio medio en Crucero (USD/MWh) | Valor spot (millones USD) | USD por tonelada de cobre |
+|---|---|---|---|---|
+| 2022 | 27,4 | 100,7 | 2.761 | 518 |
+| 2023 | 27,4 | 78,3 | 2.143 | 408 |
+| 2024 | 29,2 | 49,3 | 1.441 | 262 |
+| 2025 | 29,2 | 51,3 | 1.495 | 277 |
+
+- **A precio spot, la cuenta eléctrica de la minería del cobre se redujo a la mitad entre 2022 y 2024** (de USD 518 a 262 por tonelada de cobre), mientras la electricidad que usó subió 7%. Valorizada en Puerto Montt, 2022 costaría USD 978 por tonelada: dónde se valoriza la energía importa tanto como cuánta se usa.
+- **En el norte, la energía de noche cuesta mucho más que la del mediodía.** En 2022-2025 la brecha entre la noche (20-06) y las horas solares (10-16) en Crucero, Cardones y Pan de Azúcar promedió USD 73-117/MWh por año, contra USD 30-53/MWh en el centro-sur. Esa brecha es lo que una faena pesaría antes de mover carga flexible (bombeo de agua de mar, chancado de acopios) a las horas solares.
+- Desde julio de 2024 los informes diarios del Coordinador dan un precio de Crucero menor que los reportes mensuales de la CNE (documentado en el repositorio de energía); los precios de aquí son los de los informes diarios.
+
+```bash
+python -m src.ingest_cen            # carga la tabla diaria versionada (data/real/) en DuckDB
+python -m src.ingest_cen --refresh  # la regenera desde la serie horaria publicada en el repositorio de energía
+```
+
 ## 1. Problema de negocio (capa simulada de faena)
 
 Las faenas mineras en Chile suelen operar tres dominios operativos de forma aislada: **flotación geometalúrgica** (telemetría de planta), **mantención CAEX** (flota de camiones de extracción), y **seguridad/reporte de incidentes** (alineado a SERNAGEOMIN). Cada dominio tiene sus propios reportes, y nadie puede responder preguntas cruzadas en un solo lugar -- por ejemplo: *"¿el turno con el incidente de seguridad también tuvo OEE degradado, y se mantuvo la recuperación?"*
@@ -69,7 +94,7 @@ Este proyecto construye un **data warehouse analítico** único que unifica los 
 | Métrica | Resultado | Qué significa |
 |---|---|---|
 | Modelos dbt construidos | 7 (3 staging + 1 intermediate + 1 mart + 2 vistas ML-ready) | Linaje completo desde ingesta cruda hasta listo-para-análisis, sin SQL manual fuera de dbt |
-| Tests dbt pasando | **121/121** | Unicidad de grano, not-null y rangos de telemetría físicamente plausibles (ley 0-100%, pH 0-14) aplicados en todo el pipeline |
+| Tests dbt pasando | **131/131** | Unicidad de grano, not-null y rangos de telemetría físicamente plausibles (ley 0-100%, pH 0-14) aplicados en todo el pipeline |
 | Rango de OEE (540 turnos) | 37,2%-90,4%, prom. 69,0% | Correctamente acotado ≤100%, cruzado entre dominios (incidentes de seguridad degradan de forma medible el factor de calidad) |
 | Rango de recuperación de cobre | 81,1%-85,7%, prom. 83,4% | Realista para flotación de cobre, calculado al mismo grano compartido que los KPIs de flota/seguridad |
 | Vistas ML-ready | 2 (`ml_predictive_maintenance`, `ml_ore_grade_prediction`) | Ventanas móviles/lags/etiquetas ya construidas en la capa de warehouse -- sin paso separado de feature engineering para entrenar contra ellas |
@@ -219,6 +244,7 @@ data-warehouse-analitico-mineria-chile/
 ├── src/
 │   ├── ingest.py                      # generador de datos crudos sintéticos + carga a DuckDB
 │   ├── ingest_cochilco.py             # REAL: Excel del anuario de Cochilco -> tabla larga -> DuckDB
+│   ├── ingest_cen.py                  # REAL: costo marginal horario del SEN -> tabla diaria por barra -> DuckDB
 │   ├── make_figures.py                # Gráficos del README, desde el warehouse construido
 │   └── orchestrator.py                # ingesta -> dbt deps/seed/run -> dbt test (building block)
 ├── run_pipeline.py                    # orquestador a nivel de repo: agrega validación de esquema DuckDB
@@ -300,7 +326,7 @@ Todos los números a continuación provienen de ejecutar realmente el pipeline d
 | Filas crudas ingeridas | 6.480 flotación + 1.620 mantención + 212 incidentes de seguridad |
 | Seed dbt | 1 (`dim_equipos_caex`, 9 camiones CAEX en 3 faenas) |
 | Modelos dbt construidos | 7 (3 staging + 1 intermediate + 1 mart + 2 vistas ML) |
-| Tests dbt | **121/121 pasando** (genéricos + `dbt_utils` + 5 tests singulares custom) |
+| Tests dbt | **131/131 pasando** (genéricos + `dbt_utils` + 5 tests singulares custom) |
 | Filas en `fct_daily_mining_kpis` | 540 (3 faenas × 90 días × 2 turnos) |
 | Filas en `ml_predictive_maintenance` | 1.620 -- mismo grano que `int_equipment_performance`; 1.611 tienen `falla_siguiente_turno` no nulo (todos menos el último turno observado por camión) |
 | Filas en `ml_ore_grade_prediction` | 6.480 -- grano horario; `target_recuperacion_cu_pct` no nulo en las 6.480 (sin tripletas de ley físicamente inconsistentes en esta corrida sintética) |
@@ -380,7 +406,7 @@ La **capa real** (sección 0) es el anuario de Cochilco, sin más cambios que el
 
 ```powershell
 pytest -v                                                                      # 8 tests: invariantes de la ingesta + contrato de validación de esquema
-dbt test --project-dir dbt_project --profiles-dir dbt_project                  # 121 tests: calidad de datos del warehouse
+dbt test --project-dir dbt_project --profiles-dir dbt_project                  # 131 tests: calidad de datos del warehouse
 ```
 
 Los 4 tests pytest nuevos ejercitan `validate_duckdb_schema()` de `run_pipeline.py` directamente contra archivos DuckDB desechables (`tmp_path`, no el warehouse real) -- confirmando que pasa con un contrato satisfecho y falla con un error específico y legible ante una tabla faltante, una columna faltante, y una base de datos inexistente, de modo que el paso de validación de esquema en sí queda verificado, no solo ejercitado como efecto secundario de que el pipeline completo funcione.

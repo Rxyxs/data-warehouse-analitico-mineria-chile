@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_cen__cmg_diario
+    description: >
+      Costo marginal real del SEN por día y barra (USD/MWh), 2022-2025: promedio del día, de las horas solares
+      (10-16) y de la noche (20-06), hora local. Datos reales del Coordinador Eléctrico Nacional.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [fecha, barra]
+    columns:
+      - name: barra
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Crucero', 'Cardones', 'Pan de Azucar', 'Quillota', 'Charrua', 'Puerto Montt']
+      - name: cmg_promedio_usd_mwh
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1000

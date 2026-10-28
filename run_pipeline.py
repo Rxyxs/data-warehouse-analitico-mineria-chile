@@ -58,6 +58,10 @@ SCHEMA_CONTRACT: dict[str, list[str]] = {
     # Capa real (anuario de Cochilco)
     "stg_cochilco__anuario": ["tabla", "etiqueta", "anio", "valor", "unidad"],
     "fct_cobre_faena_anual": ["anio", "faena", "propiedad", "produccion_kt", "participacion_pct"],
+    # Capa real (costo marginal del SEN, Coordinador Eléctrico Nacional)
+    "stg_cen__cmg_diario": ["fecha", "barra", "cmg_promedio_usd_mwh", "cmg_horas_solares_usd_mwh"],
+    "fct_cmg_mensual_barra": ["mes", "barra", "cmg_promedio_usd_mwh", "brecha_noche_solar_usd_mwh"],
+    "fct_costo_electrico_cobre_anual": ["anio", "barra", "costo_spot_electricidad_musd", "costo_spot_usd_por_t_cobre"],
     "fct_sector_cobre_anual": [
         "anio", "produccion_total_kt", "ley_concentradora_pct", "electricidad_concentradora_tj",
         "concentradora_kwh_t_procesada", "agua_concentracion_m3_t", "indice_costo", "precio_lme_usc_lb",
@@ -126,20 +130,21 @@ def main() -> None:
         "--target", args.target,
     ]
 
-    _run_step("1/7 Ingesta operativa simulada -> DuckDB", [sys.executable, "-m", "src.ingest"])
-    _run_step("2/7 Ingesta real: anuario Cochilco -> DuckDB", [sys.executable, "-m", "src.ingest_cochilco"])
-    _run_step("3/7 dbt deps (instala dbt_utils)", [*DBT_CMD, "deps", *dbt_common_args])
-    _run_step("4/7 dbt seed (dimensión de equipos CAEX)", [*DBT_CMD, "seed", *dbt_common_args])
-    _run_step("5/7 dbt run (staging -> intermediate -> marts -> ml)", [*DBT_CMD, "run", *dbt_common_args])
+    _run_step("1/8 Ingesta operativa simulada -> DuckDB", [sys.executable, "-m", "src.ingest"])
+    _run_step("2/8 Ingesta real: anuario Cochilco -> DuckDB", [sys.executable, "-m", "src.ingest_cochilco"])
+    _run_step("3/8 Ingesta real: costo marginal del SEN (CEN) -> DuckDB", [sys.executable, "-m", "src.ingest_cen"])
+    _run_step("4/8 dbt deps (instala dbt_utils)", [*DBT_CMD, "deps", *dbt_common_args])
+    _run_step("5/8 dbt seed (dimensión de equipos CAEX)", [*DBT_CMD, "seed", *dbt_common_args])
+    _run_step("6/8 dbt run (staging -> intermediate -> marts -> ml)", [*DBT_CMD, "run", *dbt_common_args])
 
-    print(f"\n{'=' * 70}\n>> 6/7 Validación de esquema en DuckDB\n{'=' * 70}")
+    print(f"\n{'=' * 70}\n>> 7/8 Validación de esquema en DuckDB\n{'=' * 70}")
     if args.target == "dev":
         validate_duckdb_schema()
     else:
         print("  (omitida: la validación de esquema de este script asume DuckDB; "
               "para 'postgres' valida el esquema con las herramientas de esa base)")
 
-    _run_step("7/7 dbt test (genéricos + dbt_utils + custom)", [*DBT_CMD, "test", *dbt_common_args])
+    _run_step("8/8 dbt test (genéricos + dbt_utils + custom)", [*DBT_CMD, "test", *dbt_common_args])
 
     print(f"\nPipeline completo (target={args.target}).")
     if args.target == "dev":

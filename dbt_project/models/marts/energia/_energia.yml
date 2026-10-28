@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: fct_cmg_mensual_barra
+    description: >
+      Costo marginal real del SEN por mes y barra (USD/MWh): promedio, horas solares, noche y la brecha
+      noche - horas solares. Datos reales del Coordinador. Grano: una fila por (mes, barra).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [mes, barra]
+    columns:
+      - name: dias
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 31
+  - name: fct_costo_electrico_cobre_anual
+    description: >
+      Electricidad de la minería del cobre (Cochilco) valorizada al costo marginal real de cada barra: costo
+      de oportunidad a precio spot, no la tarifa que pagan las faenas, que compran por contratos.
+      Grano: una fila por (anio, barra), años 2022-2025 con al menos 330 días de precio.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [anio, barra]
+    columns:
+      - name: costo_spot_usd_por_t_cobre
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 2000

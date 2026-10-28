@@ -13,7 +13,7 @@
 [![Postgres](https://img.shields.io/badge/adapter-Postgres-336791)](https://www.postgresql.org/)
 [![Polars](https://img.shields.io/badge/ETL-Polars-CD792C)](https://pola.rs/)
 [![Streamlit](https://img.shields.io/badge/dashboard-Streamlit-FF4B4B)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/dbt%20tests-121%20passing-brightgreen)](dbt_project/models/)
+[![Tests](https://img.shields.io/badge/dbt%20tests-131%20passing-brightgreen)](dbt_project/models/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 </div>
@@ -27,6 +27,7 @@ The warehouse has two layers, and they are labelled as such everywhere:
 | Layer | Source | Grain | Models |
 |---|---|---|---|
 | **Real** | Cochilco, *Anuario de Estadísticas del Cobre y Otros Minerales 2000-2025* (official Excel, 9 tables) | year x mine, year x process, year | `stg_cochilco__*`, `dim_faena_cobre`, `fct_cobre_faena_anual`, `fct_sector_cobre_anual` |
+| **Real** | Coordinador Eléctrico Nacional daily reports: hourly marginal cost at six 220 kV buses, 2022-2025 | day x bus | `stg_cen__cmg_diario`, `fct_cmg_mensual_barra`, `fct_costo_electrico_cobre_anual` |
 | **Simulated** | `src/ingest.py`, fixed seed | date x shift x site | everything in sections 1-8 below |
 
 No public data exists at shift level for a Chilean mine (flotation telemetry, truck logs and incident reports are all internal), so the site layer stays simulated. The sector layer is real: `src/ingest_cochilco.py` turns the yearbook's wide, bilingual, indented sheets into a long table (3,233 rows) that keeps the hierarchy (Codelco -> divisions, process -> fuel / electricity), and dbt models it.
@@ -56,6 +57,30 @@ python -m src.ingest_cochilco            # load the versioned long table (data/r
 python -m src.ingest_cochilco --refresh  # download the official Excel again and rebuild it
 ```
 
+### Real electricity prices: what copper mining's power is worth at the spot price
+
+A second real source joins the sector layer: the **hourly marginal cost of Chile's grid (SEN) at six 220 kV buses**, from Crucero (Antofagasta) to Puerto Montt, 2022-2025. It is read out of the vector charts of the grid coordinator's public daily reports in [chile-energy-grid-forecasting](https://github.com/Rxyxs/chile-energy-grid-forecasting) and validated there against official monthly series; `src/ingest_cen.py` summarises it to one row per day and bus (daily mean, solar hours 10-16 and night 20-06, local time) and dbt models it as `stg_cen__cmg_diario`, `fct_cmg_mensual_barra` and `fct_costo_electrico_cobre_anual`.
+
+![Copper mining's electricity at the real spot price](outputs/figures/real_energy_cost.png)
+
+`fct_costo_electrico_cobre_anual` values the electricity copper mining consumed each year (Cochilco table 6.5) at each bus's real mean marginal cost. **This is a spot-price opportunity cost, not what mines pay**: they buy almost all their power through long-term contracts.
+
+| Year | Electricity (TWh) | Crucero mean price (USD/MWh) | Spot value (USD M) | USD per tonne of copper |
+|---|---|---|---|---|
+| 2022 | 27.4 | 100.7 | 2,761 | 518 |
+| 2023 | 27.4 | 78.3 | 2,143 | 408 |
+| 2024 | 29.2 | 49.3 | 1,441 | 262 |
+| 2025 | 29.2 | 51.3 | 1,495 | 277 |
+
+- **At the spot price, copper mining's electricity bill halved between 2022 and 2024** (USD 518 to 262 per tonne of copper), while the electricity it used rose 7%. Priced at Puerto Montt instead, 2022 would cost USD 978 per tonne: where the power is priced matters as much as how much is used.
+- **In the north, night power costs far more than midday power.** Across 2022-2025 the gap between night (20-06) and solar hours (10-16) at Crucero, Cardones and Pan de Azúcar averaged USD 73-117/MWh per year, against USD 30-53/MWh in the centre-south. That gap is what a mine would weigh before shifting flexible load (seawater pumping, stockpile crushing) into solar hours.
+- From July 2024 the coordinator's daily reports give a lower Crucero price than the CNE monthly reports (documented in the energy repository); the prices here are the daily reports'.
+
+```bash
+python -m src.ingest_cen            # load the versioned daily table (data/real/) into DuckDB
+python -m src.ingest_cen --refresh  # rebuild it from the hourly series published in the energy repository
+```
+
 ## 1. Business problem (simulated site layer)
 
 Mining sites in Chile typically run three operational domains in isolation: **geometallurgical flotation** (plant telemetry), **CAEX predictive/reactive maintenance** (haul truck fleet), and **safety/incident reporting** (SERNAGEOMIN-aligned). Each domain has its own reports, and nobody can answer cross-domain questions in one place -- e.g. *"did the shift with the safety incident also have degraded OEE, and did recovery hold up?"*
@@ -69,7 +94,7 @@ This project builds a single **analytical data warehouse** that unifies the thre
 | Metric | Result | What it means |
 |---|---|---|
 | dbt models built | 7 (3 staging + 1 intermediate + 1 mart + 2 ML-ready views) | Full lineage from raw ingest to analysis-ready, no manual SQL outside dbt |
-| dbt tests passing | **121/121** | Grain uniqueness, not-null, and physically-plausible telemetry ranges (ore grade 0-100%, pH 0-14) enforced pipeline-wide |
+| dbt tests passing | **131/131** | Grain uniqueness, not-null, and physically-plausible telemetry ranges (ore grade 0-100%, pH 0-14) enforced pipeline-wide |
 | OEE range (540 shifts) | 37.2%-90.4%, avg 69.0% | Correctly bounded ≤100%, cross-domain (safety incidents measurably drag down the quality factor) |
 | Copper recovery range | 81.1%-85.7%, avg 83.4% | Realistic for copper flotation, computed at the same shared grain as fleet/safety KPIs |
 | ML-ready views | 2 (`ml_predictive_maintenance`, `ml_ore_grade_prediction`) | Rolling windows/lags/labels pre-built at the warehouse layer -- no separate feature-engineering step needed to train against them |
@@ -219,6 +244,7 @@ data-warehouse-analitico-mineria-chile/
 ├── src/
 │   ├── ingest.py                      # synthetic raw data generator + DuckDB loader
 │   ├── ingest_cochilco.py             # REAL: Cochilco yearbook Excel -> long table -> DuckDB
+│   ├── ingest_cen.py                  # REAL: SEN hourly marginal cost -> daily table by bus -> DuckDB
 │   ├── make_figures.py                # README figures, read from the built warehouse
 │   └── orchestrator.py                # ingest -> dbt deps/seed/run -> dbt test (building block)
 ├── run_pipeline.py                    # repo-level orchestrator: adds DuckDB schema validation
@@ -300,7 +326,7 @@ All numbers below come from actually running the pipeline in this repo:
 | Raw rows ingested | 6,480 flotation + 1,620 maintenance + 212 safety incidents |
 | dbt seed | 1 (`dim_equipos_caex`, 9 CAEX trucks across 3 faenas) |
 | dbt models built | 7 (3 staging + 1 intermediate + 1 mart + 2 ML views) |
-| dbt tests | **121/121 passing** (generic + `dbt_utils` + 5 custom singular tests) |
+| dbt tests | **131/131 passing** (generic + `dbt_utils` + 5 custom singular tests) |
 | `fct_daily_mining_kpis` rows | 540 (3 faenas × 90 days × 2 turnos) |
 | `ml_predictive_maintenance` rows | 1,620 -- same grain as `int_equipment_performance`; 1,611 have a non-null `falla_siguiente_turno` label (all but the last observed shift per truck) |
 | `ml_ore_grade_prediction` rows | 6,480 -- hourly grain; `target_recuperacion_cu_pct` is non-null on all 6,480 (no physically-inconsistent grade triples in this synthetic run) |
@@ -380,7 +406,7 @@ The **real layer** (section 0) is Cochilco's yearbook, unmodified apart from res
 
 ```powershell
 pytest -v                                                                      # 8 tests: ingestion invariants + schema-validation contract
-dbt test --project-dir dbt_project --profiles-dir dbt_project                  # 121 tests: warehouse data quality
+dbt test --project-dir dbt_project --profiles-dir dbt_project                  # 131 tests: warehouse data quality
 ```
 
 The 4 new pytest tests exercise `run_pipeline.py`'s `validate_duckdb_schema()` directly against throwaway in-memory-style DuckDB files (`tmp_path`, not the real warehouse) -- confirming it passes on a satisfied contract and fails with a specific, legible error for a missing table, a missing column, and a missing database file, so the schema-validation step itself is verified, not just exercised as a side effect of the pipeline succeeding.
